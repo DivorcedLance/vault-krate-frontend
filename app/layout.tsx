@@ -8,9 +8,9 @@ import { Toaster } from "sonner"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Vault-Krate - Secure File Sharing",
+  title: "Vault-Krate - Compartir archivos de forma segura",
   description:
-    "Share files instantly without registration, or create an account for permanent storage and advanced features.",
+    "Comparte archivos al instante sin registro, o crea una cuenta para almacenamiento permanente y funciones avanzadas.",
 }
 
 export default function RootLayout({
