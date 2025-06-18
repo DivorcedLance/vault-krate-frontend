@@ -95,7 +95,7 @@ export default function DashboardPage() {
       const metadata = {
         user_id: user.id,
         description: description || "",
-        file_name: file.name,
+        file_name: file.name.replace(/\.[^/.]+$/, ""),
         mime_type: file.type,
       }
 

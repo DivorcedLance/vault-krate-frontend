@@ -32,7 +32,7 @@ export default function HomePage() {
       const metadata = {
         user_id: user?.id || null,
         description: description || "",
-        file_name: file.name,
+        file_name: file.name.replace(/\.[^/.]+$/, ""),
         mime_type: file.type,
         delete_at: user ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : undefined, // 24 hours for non-logged in users
       }
