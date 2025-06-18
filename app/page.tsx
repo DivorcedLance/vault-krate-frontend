@@ -220,7 +220,7 @@ export default function HomePage() {
           <Card className="text-center">
             <CardHeader className="pb-4">
               <Users className="h-8 w-8 text-indigo-600 mb-2 mx-auto" />
-              <CardTitle className="text-lg sm:text-xl">Fácil de Compartir</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">Fácil de compartir</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 text-sm sm:text-base">
