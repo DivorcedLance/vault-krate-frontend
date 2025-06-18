@@ -59,6 +59,7 @@ export default function DashboardPage() {
       const response = await fetch(`https://vault-krate-efzt.shuttle.app/files/info?user_id=${user.id}`)
       if (response.ok) {
         const data = await response.json()
+        console.log("Archivos obtenidos:", data)
         setFiles(data)
       }
     } catch (error) {
@@ -142,6 +143,8 @@ export default function DashboardPage() {
 
   const handleUpdateFile = async (fileInfo: FileInfo) => {
     try {
+      console.log("Actualizando archivo:", fileInfo)
+
       const response = await fetch("https://vault-krate-efzt.shuttle.app/files/info", {
         method: "PUT",
         headers: {
