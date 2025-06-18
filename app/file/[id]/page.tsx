@@ -216,7 +216,7 @@ export default function FilePage({ params }: { params: Promise<{ id: string }> }
               <div className="pt-2 sm:pt-4">
                 <Button
                   onClick={handleDownload}
-                  disabled={downloading || isExpired}
+                  disabled={downloading || !!isExpired}
                   size="lg"
                   className="w-full text-sm sm:text-base"
                 >
