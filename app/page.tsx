@@ -168,11 +168,11 @@ export default function HomePage() {
               <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-sm text-green-800 mb-2 font-medium">¡Archivo subido exitosamente!</p>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                  <Input value={`${window.location.origin}/file/${uploadResult}`} readOnly className="text-xs flex-1" />
+                  <Input value={`${process.env.NEXT_PUBLIC_SITE_URL}/file/${uploadResult}`} readOnly className="text-xs flex-1" />
                   <Button
                     size="sm"
                     onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/file/${uploadResult}`)
+                      navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_SITE_URL}/file/${uploadResult}`)
                       alert("¡Enlace copiado al portapapeles!")
                     }}
                     className="w-full sm:w-auto"

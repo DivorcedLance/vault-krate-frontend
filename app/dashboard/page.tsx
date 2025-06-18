@@ -377,7 +377,7 @@ export default function DashboardPage() {
                                 </Button>
                                 <Button
                                   onClick={() => {
-                                    const link = `${window.location.origin}/file/${file.file_id}`
+                                    const link = `${process.env.NEXT_PUBLIC_SITE_URL}/file/${file.file_id}`
                                     navigator.clipboard.writeText(link)
                                     alert("¡Enlace copiado al portapapeles!")
                                   }}
