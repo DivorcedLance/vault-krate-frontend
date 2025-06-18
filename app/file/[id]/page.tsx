@@ -8,6 +8,8 @@ import { Download, File, Calendar, Eye, Clock, AlertTriangle } from "lucide-reac
 import { formatBytes, formatDate } from "@/lib/utils"
 import Link from "next/link"
 import { use } from "react"
+import { toast } from "sonner"
+import Image from "next/image"
 
 interface FileInfo {
   file_id: string
@@ -75,7 +77,7 @@ export default function FilePage({ params }: { params: Promise<{ id: string }> }
       }
     } catch (error) {
       console.error("Error de descarga:", error)
-      alert("Error al descargar. Por favor intenta de nuevo.")
+      toast.error("Error al descargar el archivo. Por favor, inténtalo de nuevo más tarde.")
     } finally {
       setDownloading(false)
     }
@@ -123,7 +125,14 @@ export default function FilePage({ params }: { params: Promise<{ id: string }> }
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Link href="/" className="flex items-center space-x-2">
-            <File className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-600" />
+            <Image
+                src="/favicon.ico"
+                alt="Vault-Krate Logo"
+                width={32}
+                height={32}
+                className="h-6 w-6 sm:h-8 sm:w-8"
+                priority
+              />
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Vault-Krate</h1>
           </Link>
         </div>
@@ -159,9 +168,11 @@ export default function FilePage({ params }: { params: Promise<{ id: string }> }
                     <Clock className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                     <span className="font-semibold text-sm sm:text-base">Expira Pronto</span>
                   </div>
-                  <p className="text-yellow-700 mt-1 text-xs sm:text-sm">
-                    Este archivo expirará en {hoursUntilExpiry} horas.
-                  </p>
+                    <p className="text-yellow-700 mt-1 text-xs sm:text-sm">
+                    {hoursUntilExpiry !== null && hoursUntilExpiry < 1
+                      ? "Este archivo expirará en menos de 1 hora."
+                      : `Este archivo expirará en ${hoursUntilExpiry} horas.`}
+                    </p>
                 </div>
               ) : null}
 
@@ -202,7 +213,7 @@ export default function FilePage({ params }: { params: Promise<{ id: string }> }
                 {fileInfo.delete_at && (
                   <Badge variant={isExpired ? "destructive" : "outline"} className="text-xs">
                     <Clock className="h-3 w-3 mr-1" />
-                    {isExpired ? "Expirado" : `Expira ${new Date(fileInfo.delete_at).toLocaleDateString()}`}
+                    {isExpired ? "Expirado" : `Expira ${new Date(fileInfo.delete_at).toLocaleDateString()} ${new Date(fileInfo.delete_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
                   </Badge>
                 )}
                 {fileInfo.user_id === "anonymous" && (
@@ -238,7 +249,7 @@ export default function FilePage({ params }: { params: Promise<{ id: string }> }
                   <Button
                     onClick={() => {
                       navigator.clipboard.writeText(window.location.href)
-                      alert("¡Enlace copiado al portapapeles!")
+                      toast.success("¡Enlace copiado al portapapeles!")
                     }}
                     variant="outline"
                     size="sm"

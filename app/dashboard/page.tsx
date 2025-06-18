@@ -14,8 +14,11 @@ import { Upload, Download, Trash2, Edit, File, HardDrive, Calendar, Eye, Share2 
 import { useAuth } from "@/hooks/use-auth"
 import { formatBytes, formatDate } from "@/lib/utils"
 import Link from "next/link"
+import { FileExpiryInput } from "@/components/FileExpiryInput"
+import { toast } from "sonner"
+import Image from "next/image"
 
-interface FileInfo {
+export interface FileInfo {
   file_id: string
   user_id: string
   size: number
@@ -59,7 +62,6 @@ export default function DashboardPage() {
       const response = await fetch(`https://vault-krate-efzt.shuttle.app/files/info?user_id=${user.id}`)
       if (response.ok) {
         const data = await response.json()
-        console.log("Archivos obtenidos:", data)
         setFiles(data)
       }
     } catch (error) {
@@ -137,14 +139,12 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error("Error al eliminar:", error)
-      alert("Error al eliminar. Por favor intenta de nuevo.")
+      toast.error("Error al eliminar. Por favor intenta de nuevo.")
     }
   }
 
   const handleUpdateFile = async (fileInfo: FileInfo) => {
     try {
-      console.log("Actualizando archivo:", fileInfo)
-
       const response = await fetch("https://vault-krate-efzt.shuttle.app/files/info", {
         method: "PUT",
         headers: {
@@ -159,7 +159,7 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error("Error al actualizar:", error)
-      alert("Error al actualizar. Por favor intenta de nuevo.")
+      toast.error("Error al actualizar. Por favor intenta de nuevo.")
     }
   }
 
@@ -210,7 +210,14 @@ export default function DashboardPage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
             <Link href="/" className="flex items-center space-x-2">
-              <File className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-600" />
+              <Image
+                src="/favicon.ico"
+                alt="Vault-Krate Logo"
+                width={32}
+                height={32}
+                className="h-6 w-6 sm:h-8 sm:w-8"
+                priority
+              />
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Vault-Krate</h1>
             </Link>
             <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
@@ -321,34 +328,44 @@ export default function DashboardPage() {
                     {files.map((file) => (
                       <div key={file.file_id} className="border rounded-lg p-3 sm:p-4">
                         {editingFile?.file_id === file.file_id ? (
-                          <div className="space-y-4">
-                            <Input
-                              value={editingFile.file_name}
-                              onChange={(e) => setEditingFile({ ...editingFile, file_name: e.target.value })}
-                              placeholder="Nombre del archivo"
-                              className="text-sm"
-                            />
-                            <Textarea
-                              value={editingFile.description}
-                              onChange={(e) => setEditingFile({ ...editingFile, description: e.target.value })}
-                              placeholder="Descripción"
-                              className="min-h-[60px] resize-none text-sm"
-                            />
+                            <div className="space-y-4">
+                              <Label className="text-sm font-medium">Editar nombre</Label>
+                              <Input
+                                value={editingFile.file_name}
+                                onChange={(e) => setEditingFile({ ...editingFile, file_name: e.target.value })}
+                                placeholder="Nombre del archivo"
+                                className="text-sm"
+                              />
+                              <Textarea
+                                value={editingFile.description}
+                                onChange={(e) => setEditingFile({ ...editingFile, description: e.target.value })}
+                                placeholder="Descripción"
+                                className="min-h-[60px] resize-none text-sm"
+                              />
+                              <div>
+                                <Label htmlFor="delete_at" className="text-sm font-medium">
+                                  Programar fecha de eliminación (mínimo dentro de 3 horas)
+                                </Label>
+                                <FileExpiryInput 
+                                  editingFile={editingFile}
+                                  setEditingFile={setEditingFile}
+                                />
+                              </div>
                             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                               <Button
-                                onClick={() => handleUpdateFile(editingFile)}
-                                size="sm"
-                                className="w-full sm:w-auto"
+                              onClick={() => handleUpdateFile(editingFile)}
+                              size="sm"
+                              className="w-full sm:w-auto"
                               >
-                                Guardar
+                              Guardar
                               </Button>
                               <Button
-                                onClick={() => setEditingFile(null)}
-                                variant="outline"
-                                size="sm"
-                                className="w-full sm:w-auto"
+                              onClick={() => setEditingFile(null)}
+                              variant="outline"
+                              size="sm"
+                              className="w-full sm:w-auto"
                               >
-                                Cancelar
+                              Cancelar
                               </Button>
                             </div>
                           </div>
@@ -382,7 +399,7 @@ export default function DashboardPage() {
                                   onClick={() => {
                                     const link = `${process.env.NEXT_PUBLIC_SITE_URL}/file/${file.file_id}`
                                     navigator.clipboard.writeText(link)
-                                    alert("¡Enlace copiado al portapapeles!")
+                                    toast.success("¡Enlace copiado al portapapeles!")
                                   }}
                                   size="sm"
                                   variant="outline"
@@ -418,7 +435,7 @@ export default function DashboardPage() {
                               </Badge>
                               {file.delete_at && (
                                 <Badge variant="destructive" className="truncate">
-                                  Expira: {new Date(file.delete_at).toLocaleDateString()}
+                                  Expira: {new Date(file.delete_at).toLocaleDateString()} {new Date(file.delete_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                 </Badge>
                               )}
                             </div>

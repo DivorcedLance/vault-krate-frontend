@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Upload, Share2, Shield, Clock, Users } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
+import Image from "next/image"
 
 export default function HomePage() {
   const [file, setFile] = useState<File | null>(null)
@@ -33,7 +34,7 @@ export default function HomePage() {
         description: description || "",
         file_name: file.name,
         mime_type: file.type,
-        delete_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
+        delete_at: user ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : undefined, // 24 hours for non-logged in users
       }
 
       formData.append("metadata", JSON.stringify(metadata))
@@ -66,7 +67,14 @@ export default function HomePage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
             <div className="flex items-center space-x-2">
-              <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-600" />
+              <Image
+                src="/favicon.ico"
+                alt="Vault-Krate Logo"
+                width={32}
+                height={32}
+                className="h-6 w-6 sm:h-8 sm:w-8"
+                priority
+              />
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Vault-Krate</h1>
             </div>
             <div className="flex items-center space-x-4">
@@ -128,10 +136,12 @@ export default function HomePage() {
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center justify-center space-x-2 text-lg sm:text-xl">
               <Upload className="h-5 w-5" />
-              <span>Subida Rápida</span>
+                <span>{user ? "Subida Permanente" : "Subida Rápida"}</span>
             </CardTitle>
             <CardDescription className="text-sm sm:text-base">
-              Los archivos expiran en 24 horas a menos que tengas una cuenta
+              {user
+              ? "Tus archivos se almacenarán de forma permanente en tu cuenta."
+              : "Los archivos expiran en 24 horas a menos que tengas una cuenta"}
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
@@ -236,9 +246,12 @@ export default function HomePage() {
       <section className="bg-indigo-600 text-white py-8 sm:py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h3 className="text-2xl sm:text-3xl font-bold mb-4">¿Listo para más funciones?</h3>
-          <p className="text-lg sm:text-xl mb-6 sm:mb-8 opacity-90 max-w-2xl mx-auto">
-            Crea una cuenta para obtener almacenamiento permanente, gestión de archivos y análisis detallados.
-          </p>
+            <p className="text-lg sm:text-xl mb-6 sm:mb-8 opacity-90 max-w-2xl mx-auto">
+            {user
+              ? "¡Gracias por usar Vault-Krate! Disfruta de almacenamiento permanente, gestión de archivos y análisis detallados."
+              : "Crea una cuenta para obtener almacenamiento permanente, gestión de archivos y análisis detallados."
+            }
+            </p>
           {!user && (
             <Button
               onClick={signInWithGoogle}
