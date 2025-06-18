@@ -31,7 +31,7 @@ export default function HomePage() {
       console.log("Uploading file:", file.type, file.name)
 
       const metadata = {
-        user_id: user?.id || "anonymous",
+        user_id: user?.id || null,
         description: description || "",
         file_name: file.name,
         mime_type: file.type,
