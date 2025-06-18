@@ -28,10 +28,13 @@ export default function HomePage() {
       const formData = new FormData()
       formData.append("file_data", file)
 
+      console.log("Uploading file:", file.type, file.name)
+
       const metadata = {
         user_id: user?.id || "anonymous",
         description: description || "",
         file_name: file.name,
+        mime_type: file.type,
         delete_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
       }
 

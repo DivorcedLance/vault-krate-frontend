@@ -88,11 +88,14 @@ export default function DashboardPage() {
     try {
       const formData = new FormData()
       formData.append("file_data", file)
+      
+      console.log("Uploading file:", file.type, file.name)
 
       const metadata = {
         user_id: user.id,
         description: description || "",
         file_name: file.name,
+        mime_type: file.type,
       }
 
       formData.append("metadata", JSON.stringify(metadata))
@@ -122,12 +125,11 @@ export default function DashboardPage() {
     if (!confirm("¿Estás seguro de que quieres eliminar este archivo?")) return
 
     try {
-      const response = await fetch("https://vault-krate-efzt.shuttle.app/files/delete", {
+      const response = await fetch(`https://vault-krate-efzt.shuttle.app/files/delete?file_id=${fileId}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ file_id: fileId }),
+        }
       })
 
       if (response.ok) {
