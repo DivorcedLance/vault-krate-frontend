@@ -28,8 +28,6 @@ export default function HomePage() {
       const formData = new FormData()
       formData.append("file_data", file)
 
-      console.log("Uploading file:", file.type, file.name)
-
       const metadata = {
         user_id: user?.id || null,
         description: description || "",
