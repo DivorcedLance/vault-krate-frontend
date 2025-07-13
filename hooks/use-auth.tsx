@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Register new user with Vault-Krate API
       if (event === "SIGNED_IN" && session?.user) {
         try {
-          await fetch(`https://vault-krate-efzt.shuttle.app/users/register?user_id=${session.user.id}`, {
+          await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/users/register?user_id=${session.user.id}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

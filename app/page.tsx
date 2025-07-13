@@ -39,7 +39,7 @@ export default function HomePage() {
 
       formData.append("metadata", JSON.stringify(metadata))
 
-      const response = await fetch("https://vault-krate-efzt.shuttle.app/files/upload", {
+      const response = await fetch("https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/upload", {
         method: "POST",
         body: formData,
       })

@@ -59,7 +59,7 @@ export default function DashboardPage() {
     if (!user) return
 
     try {
-      const response = await fetch(`https://vault-krate-efzt.shuttle.app/files/info?user_id=${user.id}`)
+      const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/info?user_id=${user.id}`)
       if (response.ok) {
         const data = await response.json()
         setFiles(data)
@@ -73,7 +73,7 @@ export default function DashboardPage() {
     if (!user) return
 
     try {
-      const response = await fetch(`https://vault-krate-efzt.shuttle.app/users/info?user_id=${user.id}`)
+      const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/users/info?user_id=${user.id}`)
       if (response.ok) {
         const data = await response.json()
         setUserInfo(data)
@@ -101,7 +101,7 @@ export default function DashboardPage() {
 
       formData.append("metadata", JSON.stringify(metadata))
 
-      const response = await fetch("https://vault-krate-efzt.shuttle.app/files/upload", {
+      const response = await fetch("https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/upload", {
         method: "POST",
         body: formData,
       })
@@ -126,7 +126,7 @@ export default function DashboardPage() {
     if (!confirm("¿Estás seguro de que quieres eliminar este archivo?")) return
 
     try {
-      const response = await fetch(`https://vault-krate-efzt.shuttle.app/files/delete?file_id=${fileId}`, {
+      const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/delete?file_id=${fileId}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -145,7 +145,7 @@ export default function DashboardPage() {
 
   const handleUpdateFile = async (fileInfo: FileInfo) => {
     try {
-      const response = await fetch("https://vault-krate-efzt.shuttle.app/files/info", {
+      const response = await fetch("https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/info", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -165,7 +165,7 @@ export default function DashboardPage() {
 
   const handleDownload = async (fileId: string, fileName: string) => {
     try {
-      const response = await fetch(`https://vault-krate-efzt.shuttle.app/files/download?file_id=${fileId}`)
+      const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/download?file_id=${fileId}`)
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)

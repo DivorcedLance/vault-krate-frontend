@@ -38,7 +38,7 @@ export default function FilePage({ params }: { params: Promise<{ id: string }> }
 
   const fetchFileInfo = async () => {
     try {
-      const response = await fetch(`https://vault-krate-efzt.shuttle.app/files/info?file_id=${id}`)
+      const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/info?file_id=${id}`)
       if (response.ok) {
         const data = await response.json()
         setFileInfo(data)
@@ -58,7 +58,7 @@ export default function FilePage({ params }: { params: Promise<{ id: string }> }
 
     setDownloading(true)
     try {
-      const response = await fetch(`https://vault-krate-efzt.shuttle.app/files/download?file_id=${id}`)
+      const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/download?file_id=${id}`)
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)

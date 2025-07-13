@@ -1,4 +1,4 @@
-- Los endpoints están en https://vault-krate-efzt.shuttle.app
+- Los endpoints están en https://vault-krate-balancer-01-946317982825.europe-west1.run.app
 - Usaré supabase como db, para el manejo de los datos del usuario
 - Además debe estar habilitada la autenticación con google auth por medio de supabase
 - Usaré Next.js 14 con tailwind 3 y shadcn.
@@ -55,7 +55,7 @@ Además al obtener un usuario se debe llamar a `GET /users/info`.
      * **Tailwind CSS v3**
      * **Shadcn/ui**
    * No se deben usar **Server Actions** ni llamadas desde el backend del frontend.
-   * Las llamadas a `https://vault-krate-efzt.shuttle.app` deben hacerse directamente desde el cliente.
+   * Las llamadas a `https://vault-krate-balancer-01-946317982825.europe-west1.run.app` deben hacerse directamente desde el cliente.
 
 7. **Simplicidad inicial:**
 
