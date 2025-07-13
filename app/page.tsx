@@ -20,33 +20,59 @@ export default function HomePage() {
   const [uploadResult, setUploadResult] = useState<string | null>(null)
   const { user, signInWithGoogle } = useAuth()
 
+  const uploadFileChunked = async (file: File, metadata: Record<string, unknown>, endpoint: string) => {
+    const CHUNK_SIZE = 5 * 1024 * 1024 // 5MB chunks
+    const chunks = []
+    
+    for (let start = 0; start < file.size; start += CHUNK_SIZE) {
+      const chunk = file.slice(start, start + CHUNK_SIZE)
+      chunks.push(chunk)
+    }
+
+    const formData = new FormData()
+    chunks.forEach(chunk => {
+      formData.append("file_data", chunk)
+    })
+
+    const chunkMetadata = {
+      ...metadata,
+      total_size: file.size,
+      chunk_count: chunks.length,
+      is_temporary: !user
+    }
+
+    formData.append("metadata", JSON.stringify(chunkMetadata))
+
+    const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app${endpoint}`, {
+      method: "POST",
+      body: formData,
+    })
+
+    return response
+  }
+
+
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!file) return
 
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append("file_data", file)
-
       const metadata = {
         user_id: user?.id || null,
         description: description || "",
         file_name: file.name.replace(/\.[^/.]+$/, ""),
         mime_type: file.type,
-        delete_at: user ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : undefined, // 24 hours for non-logged in users
+        delete_at: user ? undefined : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       }
 
-      formData.append("metadata", JSON.stringify(metadata))
-
-      const response = await fetch("https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/upload", {
-        method: "POST",
-        body: formData,
-      })
+      // Always use chunked upload
+      const endpoint = user ? "/files/upload/chunked" : "/files/upload/temp/chunked"
+      const response = await uploadFileChunked(file, metadata, endpoint)
 
       if (response.ok) {
         const result = await response.json()
-        setUploadResult(result[0]) // First file ID
+        setUploadResult(result.file_id)
         setFile(null)
         setDescription("")
       } else {

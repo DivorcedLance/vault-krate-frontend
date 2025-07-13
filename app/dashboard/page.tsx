@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -48,14 +46,7 @@ export default function DashboardPage() {
   const [description, setDescription] = useState("")
   const [editingFile, setEditingFile] = useState<FileInfo | null>(null)
 
-  useEffect(() => {
-    if (user) {
-      fetchUserFiles()
-      fetchUserInfo()
-    }
-  }, [user])
-
-  const fetchUserFiles = async () => {
+  const fetchUserFiles = useCallback(async () => {
     if (!user) return
 
     try {
@@ -67,9 +58,9 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error al obtener archivos:", error)
     }
-  }
+  }, [user])
 
-  const fetchUserInfo = async () => {
+  const fetchUserInfo = useCallback(async () => {
     if (!user) return
 
     try {
@@ -81,7 +72,46 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error al obtener información del usuario:", error)
     }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      fetchUserFiles()
+      fetchUserInfo()
+    }
+  }, [user, fetchUserFiles, fetchUserInfo])
+
+  const uploadFileChunked = async (file: File, metadata: Record<string, unknown>) => {
+    const CHUNK_SIZE = 5 * 1024 * 1024 // 5MB chunks
+    const chunks = []
+    
+    for (let start = 0; start < file.size; start += CHUNK_SIZE) {
+      const chunk = file.slice(start, start + CHUNK_SIZE)
+      chunks.push(chunk)
+    }
+
+    const formData = new FormData()
+    chunks.forEach(chunk => {
+      formData.append("file_data", chunk)
+    })
+
+    const chunkMetadata = {
+      ...metadata,
+      total_size: file.size,
+      chunk_count: chunks.length,
+      is_temporary: false
+    }
+
+    formData.append("metadata", JSON.stringify(chunkMetadata))
+
+    const response = await fetch("https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/upload/chunked", {
+      method: "POST",
+      body: formData,
+    })
+
+    return response
   }
+
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -89,9 +119,6 @@ export default function DashboardPage() {
 
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append("file_data", file)
-
       const metadata = {
         user_id: user.id,
         description: description || "",
@@ -99,12 +126,8 @@ export default function DashboardPage() {
         mime_type: file.type,
       }
 
-      formData.append("metadata", JSON.stringify(metadata))
-
-      const response = await fetch("https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/upload", {
-        method: "POST",
-        body: formData,
-      })
+      // Always use chunked upload
+      const response = await uploadFileChunked(file, metadata)
 
       if (response.ok) {
         setFile(null)

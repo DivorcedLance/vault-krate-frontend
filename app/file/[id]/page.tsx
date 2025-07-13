@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -32,11 +32,7 @@ export default function FilePage({ params }: { params: Promise<{ id: string }> }
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchFileInfo()
-  }, [id])
-
-  const fetchFileInfo = async () => {
+  const fetchFileInfo = useCallback(async () => {
     try {
       const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/info?file_id=${id}`)
       if (response.ok) {
@@ -51,7 +47,11 @@ export default function FilePage({ params }: { params: Promise<{ id: string }> }
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    fetchFileInfo()
+  }, [fetchFileInfo])
 
   const handleDownload = async () => {
     if (!fileInfo) return
