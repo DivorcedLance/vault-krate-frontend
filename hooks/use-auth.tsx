@@ -4,6 +4,7 @@ import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase"
+import { APP_CONFIG } from "@/lib/config"
 import type { User } from "@supabase/supabase-js"
 
 interface AuthContextType {
@@ -42,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Register new user with Vault-Krate API
       if (event === "SIGNED_IN" && session?.user) {
         try {
-          await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/users/register?user_id=${session.user.id}`, {
+          await fetch(`${APP_CONFIG.BALANCER_URL}/users/register?user_id=${session.user.id}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Upload, Share2, Shield, Clock, Users } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
+import { APP_CONFIG } from "@/lib/config"
 import Image from "next/image"
 
 export default function HomePage() {
@@ -44,7 +45,7 @@ export default function HomePage() {
 
     formData.append("metadata", JSON.stringify(chunkMetadata))
 
-    const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app${endpoint}`, {
+    const response = await fetch(`${APP_CONFIG.BALANCER_URL}${endpoint}`, {
       method: "POST",
       body: formData,
     })
