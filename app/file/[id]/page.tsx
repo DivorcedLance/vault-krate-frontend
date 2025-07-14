@@ -10,6 +10,7 @@ import Link from "next/link"
 import { use } from "react"
 import { toast } from "sonner"
 import Image from "next/image"
+import { APP_CONFIG, buildApiUrl } from "@/lib/config"
 
 interface FileInfo {
   file_id: string
@@ -25,6 +26,89 @@ interface FileInfo {
   delete_at?: string
 }
 
+// Enhanced error handling utility for file operations
+const handleFileApiError = async (operation: string, error: unknown, context?: unknown) => {
+  const timestamp = new Date().toISOString();
+  
+  console.group(`❌ File API Error - ${operation}`);
+  console.error('🕐 Timestamp:', timestamp);
+  console.error('🔥 Error:', error);
+  
+  if (context) {
+    console.error('📋 Context:', context);
+  }
+  
+  if (error instanceof TypeError && error.message.includes('fetch')) {
+    console.error('🌐 Network Error: Cannot reach server');
+    console.error('🔍 Current balancer URL:', APP_CONFIG.BALANCER_URL);
+    toast.error("Error de conexión. Verifica tu conexión a internet.");
+    return 'network';
+  }
+  
+  if (error instanceof Response) {
+    console.error('🚫 HTTP Error Response:', error.status, error.statusText);
+    
+    // Try to parse error response for detailed information
+    try {
+      const errorData = await error.json();
+      
+      // Handle enhanced balancer error responses
+      if (error.status === 502 && errorData.failed_server) {
+        console.error('🔥 Backend Server Failure Details:', {
+          failed_server: errorData.failed_server,
+          error_type: errorData.error_type,
+          error_details: errorData.error_details,
+          troubleshooting: errorData.troubleshooting
+        });
+        
+        const serverInfo = errorData.failed_server;
+        const serverName = serverInfo.server_identifier || serverInfo.server_id || 'unknown';
+        
+        toast.error(`Servidor backend "${serverName}" no disponible. ${errorData.message}`);
+        
+        return 'backend_failure';
+      }
+      
+      // Log any other structured error response
+      console.error('📋 Structured error response:', errorData);
+    } catch {
+      console.warn('⚠️ Could not parse error response as JSON');
+    }
+    
+    switch (error.status) {
+      case 404:
+        console.error('🔍 File Not Found');
+        toast.error("Archivo no encontrado o ha expirado.");
+        return 'notfound';
+      case 403:
+        console.error('🚫 Access Denied');
+        toast.error("Acceso denegado al archivo.");
+        return 'forbidden';
+      case 410:
+        console.error('📅 File Expired');
+        toast.error("El archivo ha expirado y ya no está disponible.");
+        return 'expired';
+      case 500:
+        console.error('💥 Server Error');
+        toast.error("Error del servidor. Intenta más tarde.");
+        return 'server';
+      case 502:
+        console.error('🚫 Bad Gateway - Backend server unavailable');
+        toast.error("Servidor backend no disponible. El archivo podría estar temporalmente inaccesible.");
+        return 'backend';
+      default:
+        console.error('❓ Unknown HTTP Error');
+        toast.error(`Error del servidor: ${error.status}`);
+        return 'unknown';
+    }
+  }
+  
+  console.error('❓ Unhandled Error Type');
+  console.groupEnd();
+  toast.error("Error inesperado. Por favor intenta nuevamente.");
+  return 'generic';
+};
+
 export default function FilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
@@ -32,20 +116,51 @@ export default function FilePage({ params }: { params: Promise<{ id: string }> }
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Component lifecycle logging
+  console.log('📄 File page rendered for ID:', id);
+
   const fetchFileInfo = useCallback(async () => {
+    console.group('📋 Fetch File Info');
+    console.log('🆔 File ID:', id);
+    
+    const startTime = Date.now();
+    
     try {
-      const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/info?file_id=${id}`)
-      if (response.ok) {
-        const data = await response.json()
-        setFileInfo(data)
-      } else {
-        setError("Archivo no encontrado o ha expirado")
+      const url = `${buildApiUrl('/files/info')}?file_id=${id}`;
+      console.log('📡 Fetching from:', url);
+      
+      const response = await fetch(url);
+      
+      const responseTime = Date.now() - startTime;
+      console.log(`⏱️ Response time: ${responseTime}ms`);
+      
+      if (!response.ok) {
+        const errorType = await handleFileApiError('Fetch File Info', response, { file_id: id });
+        if (errorType === 'notfound' || errorType === 'expired') {
+          setError("Archivo no encontrado o ha expirado");
+        } else {
+          setError("Error al cargar la información del archivo");
+        }
+        return;
       }
+      
+      const data = await response.json();
+      console.log('✅ File info loaded:', {
+        name: data.file_name,
+        size: formatBytes(data.size),
+        type: data.mime_type,
+        uploads: data.uploaded_at,
+        downloads: data.download_count
+      });
+      
+      setFileInfo(data);
+      setError(null);
     } catch (error) {
-      console.error("Error al obtener información del archivo:", error)
-      setError("Error al cargar la información del archivo")
+      await handleFileApiError('Fetch File Info', error, { file_id: id });
+      setError("Error al cargar la información del archivo");
     } finally {
-      setLoading(false)
+      setLoading(false);
+      console.groupEnd();
     }
   }, [id])
 
@@ -56,30 +171,62 @@ export default function FilePage({ params }: { params: Promise<{ id: string }> }
   const handleDownload = async () => {
     if (!fileInfo) return
 
-    setDownloading(true)
-    try {
-      const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/download?file_id=${id}`)
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = fileInfo.file_name
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
+    console.group('📥 Download File');
+    console.log('📁 File details:', {
+      id: fileInfo.file_id,
+      name: fileInfo.file_name,
+      size: formatBytes(fileInfo.size)
+    });
 
-        // Refresh file info to update download count
-        fetchFileInfo()
-      } else {
-        throw new Error("Error al descargar")
+    setDownloading(true);
+    const startTime = Date.now();
+    
+    try {
+      const url = `${buildApiUrl('/files/download')}?file_id=${id}`;
+      console.log('📡 Downloading from:', url);
+      
+      const response = await fetch(url);
+      
+      const responseTime = Date.now() - startTime;
+      console.log(`⏱️ Response time: ${responseTime}ms`);
+
+      if (!response.ok) {
+        await handleFileApiError('Download File', response, {
+          file_id: id,
+          file_name: fileInfo.file_name
+        });
+        return;
       }
+
+      const contentLength = response.headers.get('content-length');
+      console.log('📦 File size:', contentLength ? formatBytes(parseInt(contentLength)) : 'unknown');
+
+      const blob = await response.blob();
+      console.log('✅ Blob created:', formatBytes(blob.size));
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = fileInfo.file_name;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+
+      console.log('✅ Download completed successfully');
+      toast.success(`Archivo "${fileInfo.file_name}" descargado correctamente`);
+
+      // Refresh file info to update download count
+      console.log('🔄 Refreshing file info to update download count');
+      fetchFileInfo();
     } catch (error) {
-      console.error("Error de descarga:", error)
-      toast.error("Error al descargar el archivo. Por favor, inténtalo de nuevo más tarde.")
+      await handleFileApiError('Download File', error, {
+        file_id: id,
+        file_name: fileInfo.file_name
+      });
     } finally {
-      setDownloading(false)
+      setDownloading(false);
+      console.groupEnd();
     }
   }
 

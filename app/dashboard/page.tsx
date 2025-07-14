@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState, useCallback } from "react"
+import React, { useEffect, useState, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,6 +15,7 @@ import Link from "next/link"
 import { FileExpiryInput } from "@/components/FileExpiryInput"
 import { toast } from "sonner"
 import Image from "next/image"
+import { APP_CONFIG, buildApiUrl } from "@/lib/config"
 
 export interface FileInfo {
   file_id: string
@@ -37,40 +38,216 @@ interface UserInfo {
   space_limit: number
 }
 
+// Enhanced error handling utility
+const handleApiError = async (operation: string, error: unknown, context?: unknown) => {
+  const timestamp = new Date().toISOString();
+  
+  console.group(`❌ API Error - ${operation}`);
+  console.error('🕐 Timestamp:', timestamp);
+  console.error('🔥 Error:', error);
+  
+  if (context) {
+    console.error('📋 Context:', context);
+  }
+  
+  // Categorize error types
+  if (error instanceof TypeError && error.message.includes('fetch')) {
+    console.error('🌐 Network Error: Cannot reach server');
+    console.error('💡 Possible causes:');
+    console.error('   - Server is down');
+    console.error('   - Network connectivity issues');
+    console.error('   - CORS configuration problems');
+    console.error('   - URL misconfiguration');
+    console.error('🔍 Current balancer URL:', APP_CONFIG.BALANCER_URL);
+    
+    toast.error("Error de conexión. Verifica tu conexión a internet.");
+    return { type: 'network', message: 'Network connectivity error' };
+  }
+  
+  if (error instanceof Response) {
+    console.error('🚫 HTTP Error Response:', error.status, error.statusText);
+    
+    // Try to parse error response for detailed information
+    try {
+      const errorData = await error.json();
+      
+      // Handle enhanced balancer error responses
+      if (error.status === 502 && errorData.failed_server) {
+        console.error('🔥 Backend Server Failure Details:', {
+          failed_server: errorData.failed_server,
+          error_type: errorData.error_type,
+          error_details: errorData.error_details
+        });
+        
+        const serverInfo = errorData.failed_server;
+        const serverName = serverInfo.server_identifier || serverInfo.server_id || 'unknown';
+        
+        toast.error(`Servidor backend "${serverName}" no disponible. ${errorData.message}`);
+        
+        return { 
+          type: 'backend_failure', 
+          message: errorData.message,
+          server_info: serverInfo
+        };
+      }
+      
+      // Log any other structured error response
+      console.error('📋 Structured error response:', errorData);
+    } catch {
+      console.warn('⚠️ Could not parse error response as JSON');
+    }
+    
+    switch (error.status) {
+      case 400:
+        console.error('💥 Bad Request - Invalid data sent to server');
+        toast.error("Datos inválidos. Verifica la información enviada.");
+        return { type: 'validation', message: 'Invalid request data' };
+      
+      case 401:
+        console.error('🔐 Unauthorized - Authentication required');
+        toast.error("Sesión expirada. Por favor inicia sesión nuevamente.");
+        return { type: 'auth', message: 'Authentication required' };
+      
+      case 403:
+        console.error('🚫 Forbidden - Access denied');
+        toast.error("Acceso denegado. No tienes permisos para esta acción.");
+        return { type: 'permission', message: 'Access denied' };
+      
+      case 404:
+        console.error('🔍 Not Found - Resource not available');
+        toast.error("Recurso no encontrado.");
+        return { type: 'notfound', message: 'Resource not found' };
+      
+      case 413:
+        console.error('📦 Payload Too Large - File too big');
+        toast.error("Archivo demasiado grande. Reduce el tamaño e intenta nuevamente.");
+        return { type: 'filesize', message: 'File too large' };
+      
+      case 500:
+        console.error('💥 Internal Server Error');
+        toast.error("Error interno del servidor. Intenta nuevamente más tarde.");
+        return { type: 'server', message: 'Internal server error' };
+      
+      case 502:
+        console.error('🚫 Bad Gateway - Backend server unavailable');
+        toast.error("Servidor backend no disponible. Intenta más tarde.");
+        return { type: 'backend', message: 'Backend server unavailable' };
+      
+      case 503:
+        console.error('🚫 Service Unavailable');
+        toast.error("Servicio no disponible temporalmente. Intenta más tarde.");
+        return { type: 'unavailable', message: 'Service unavailable' };
+      
+      default:
+        console.error('❓ Unknown HTTP Error');
+        toast.error(`Error del servidor: ${error.status}`);
+        return { type: 'unknown', message: `HTTP ${error.status}` };
+    }
+  }
+  
+  // Generic error
+  console.error('❓ Unhandled Error Type');
+  console.error('🔍 Error details:', error instanceof Error ? error.message : 'Unknown error');
+  console.groupEnd();
+  
+  toast.error("Error inesperado. Por favor intenta nuevamente.");
+  return { type: 'generic', message: error instanceof Error ? error.message : 'Unknown error' };
+};
+
 export default function DashboardPage() {
   const { user, signOut } = useAuth()
   const [files, setFiles] = useState<FileInfo[]>([])
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [uploading, setUploading] = useState(false)
   const [file, setFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [description, setDescription] = useState("")
   const [editingFile, setEditingFile] = useState<FileInfo | null>(null)
+
+  // Component lifecycle logging
+  console.log('📄 Dashboard component rendered for user:', user?.email || 'anonymous');
 
   const fetchUserFiles = useCallback(async () => {
     if (!user) return
 
+    console.group('📁 Fetching user files');
+    console.log('👤 User ID:', user.id);
+    
+    const startTime = Date.now();
+    
     try {
-      const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/info?user_id=${user.id}`)
-      if (response.ok) {
-        const data = await response.json()
-        setFiles(data)
+      const url = `${buildApiUrl('/files/info')}?user_id=${user.id}`;
+      console.log('📡 Fetching from:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const responseTime = Date.now() - startTime;
+      console.log(`⏱️ Response time: ${responseTime}ms`);
+      
+      if (!response.ok) {
+        throw response;
       }
+      
+      const data = await response.json();
+      console.log(`✅ Files loaded: ${data.length} files`);
+      console.log('📋 File details:', data.map((f: FileInfo) => ({
+        id: f.file_id,
+        name: f.file_name,
+        size: formatBytes(f.size)
+      })));
+      
+      setFiles(data);
     } catch (error) {
-      console.error("Error al obtener archivos:", error)
+      await handleApiError('Fetch User Files', error, { user_id: user.id });
+    } finally {
+      console.groupEnd();
     }
   }, [user])
 
   const fetchUserInfo = useCallback(async () => {
     if (!user) return
 
+    console.group('👤 Fetching user info');
+    console.log('🆔 User ID:', user.id);
+    
+    const startTime = Date.now();
+    
     try {
-      const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/users/info?user_id=${user.id}`)
-      if (response.ok) {
-        const data = await response.json()
-        setUserInfo(data)
+      const url = `${buildApiUrl('/users/info')}?user_id=${user.id}`;
+      console.log('📡 Fetching from:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const responseTime = Date.now() - startTime;
+      console.log(`⏱️ Response time: ${responseTime}ms`);
+      
+      if (!response.ok) {
+        throw response;
       }
+      
+      const data = await response.json();
+      console.log('✅ User info loaded:', {
+        file_count: data.file_count,
+        space_used: formatBytes(data.space_used),
+        space_limit: formatBytes(data.space_limit),
+        usage_percentage: ((data.space_used / data.space_limit) * 100).toFixed(1) + '%'
+      });
+      
+      setUserInfo(data);
     } catch (error) {
-      console.error("Error al obtener información del usuario:", error)
+      await handleApiError('Fetch User Info', error, { user_id: user.id });
+    } finally {
+      console.groupEnd();
     }
   }, [user])
 
@@ -104,7 +281,7 @@ export default function DashboardPage() {
 
     formData.append("metadata", JSON.stringify(chunkMetadata))
 
-    const response = await fetch("https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/upload/chunked", {
+    const response = await fetch(buildApiUrl("/files/upload/chunked"), {
       method: "POST",
       body: formData,
     })
@@ -117,7 +294,17 @@ export default function DashboardPage() {
     e.preventDefault()
     if (!file || !user) return
 
+    console.group('📤 File Upload');
+    console.log('📁 File details:', {
+      name: file.name,
+      size: formatBytes(file.size),
+      type: file.type,
+      user_id: user.id
+    });
+
     setUploading(true)
+    const startTime = Date.now();
+    
     try {
       const metadata = {
         user_id: user.id,
@@ -126,49 +313,96 @@ export default function DashboardPage() {
         mime_type: file.type,
       }
 
+      console.log('📋 Upload metadata:', metadata);
+
       // Always use chunked upload
       const response = await uploadFileChunked(file, metadata)
+      
+      const uploadTime = Date.now() - startTime;
+      console.log(`⏱️ Upload completed in ${uploadTime}ms`);
 
       if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Upload successful:', result);
+        
+        toast.success(`Archivo "${file.name}" subido exitosamente`);
+        
         setFile(null)
         setDescription("")
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ""
+        }
         fetchUserFiles()
         fetchUserInfo()
       } else {
-        throw new Error("Error al subir")
+        throw response;
       }
     } catch (error) {
-      console.error("Error de subida:", error)
-      alert("Error al subir el archivo. Por favor intenta de nuevo.")
+      await handleApiError('File Upload', error, {
+        file_name: file.name,
+        file_size: file.size,
+        user_id: user.id
+      });
     } finally {
       setUploading(false)
+      console.groupEnd();
     }
   }
 
   const handleDeleteFile = async (fileId: string) => {
     if (!confirm("¿Estás seguro de que quieres eliminar este archivo?")) return
 
+    console.group('🗑️ Delete File');
+    console.log('📁 File ID:', fileId);
+    
+    const startTime = Date.now();
+    
     try {
-      const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/delete?file_id=${fileId}`, {
+      const url = `${buildApiUrl('/files/delete')}?file_id=${fileId}`;
+      console.log('📡 Deleting from:', url);
+      
+      const response = await fetch(url, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         }
       })
 
-      if (response.ok) {
-        fetchUserFiles()
-        fetchUserInfo()
+      const responseTime = Date.now() - startTime;
+      console.log(`⏱️ Response time: ${responseTime}ms`);
+
+      if (!response.ok) {
+        throw response;
       }
+
+      console.log('✅ File deleted successfully');
+      toast.success("Archivo eliminado correctamente");
+      
+      fetchUserFiles()
+      fetchUserInfo()
     } catch (error) {
-      console.error("Error al eliminar:", error)
-      toast.error("Error al eliminar. Por favor intenta de nuevo.")
+      await handleApiError('Delete File', error, { file_id: fileId });
+    } finally {
+      console.groupEnd();
     }
   }
 
   const handleUpdateFile = async (fileInfo: FileInfo) => {
+    console.group('✏️ Update File');
+    console.log('📁 File info:', {
+      id: fileInfo.file_id,
+      name: fileInfo.file_name,
+      description: fileInfo.description,
+      delete_at: fileInfo.delete_at
+    });
+    
+    const startTime = Date.now();
+    
     try {
-      const response = await fetch("https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/info", {
+      const url = buildApiUrl('/files/info');
+      console.log('📡 Updating at:', url);
+      
+      const response = await fetch(url, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -176,33 +410,68 @@ export default function DashboardPage() {
         body: JSON.stringify(fileInfo),
       })
 
-      if (response.ok) {
-        setEditingFile(null)
-        fetchUserFiles()
+      const responseTime = Date.now() - startTime;
+      console.log(`⏱️ Response time: ${responseTime}ms`);
+
+      if (!response.ok) {
+        throw response;
       }
+
+      console.log('✅ File updated successfully');
+      toast.success("Archivo actualizado correctamente");
+      
+      setEditingFile(null)
+      fetchUserFiles()
     } catch (error) {
-      console.error("Error al actualizar:", error)
-      toast.error("Error al actualizar. Por favor intenta de nuevo.")
+      await handleApiError('Update File', error, { file_info: fileInfo });
+    } finally {
+      console.groupEnd();
     }
   }
 
   const handleDownload = async (fileId: string, fileName: string) => {
+    console.group('📥 Download File');
+    console.log('📁 File details:', { id: fileId, name: fileName });
+    
+    const startTime = Date.now();
+    
     try {
-      const response = await fetch(`https://vault-krate-balancer-01-946317982825.europe-west1.run.app/files/download?file_id=${fileId}`)
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = fileName
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
+      const url = `${buildApiUrl('/files/download')}?file_id=${fileId}`;
+      console.log('📡 Downloading from:', url);
+      
+      const response = await fetch(url);
+
+      const responseTime = Date.now() - startTime;
+      console.log(`⏱️ Response time: ${responseTime}ms`);
+
+      if (!response.ok) {
+        throw response;
       }
+
+      const contentLength = response.headers.get('content-length');
+      console.log('📦 File size:', contentLength ? formatBytes(parseInt(contentLength)) : 'unknown');
+
+      const blob = await response.blob();
+      console.log('✅ Blob created:', formatBytes(blob.size));
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+
+      console.log('✅ Download completed successfully');
+      toast.success(`Archivo "${fileName}" descargado correctamente`);
     } catch (error) {
-      console.error("Error al descargar:", error)
-      alert("Error al descargar. Por favor intenta de nuevo.")
+      await handleApiError('Download File', error, { 
+        file_id: fileId, 
+        file_name: fileName 
+      });
+    } finally {
+      console.groupEnd();
     }
   }
 
@@ -311,6 +580,7 @@ export default function DashboardPage() {
                     <Input
                       id="file"
                       type="file"
+                      ref={fileInputRef}
                       onChange={(e) => setFile(e.target.files?.[0] || null)}
                       required
                       className="mt-1"

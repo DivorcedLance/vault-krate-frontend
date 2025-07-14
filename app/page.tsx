@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,6 +15,7 @@ import Image from "next/image"
 
 export default function HomePage() {
   const [file, setFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [description, setDescription] = useState("")
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState<string | null>(null)
@@ -75,6 +76,9 @@ export default function HomePage() {
         setUploadResult(result.file_id)
         setFile(null)
         setDescription("")
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ""
+        }
       } else {
         throw new Error("Upload failed")
       }
@@ -179,6 +183,7 @@ export default function HomePage() {
                 <Input
                   id="file"
                   type="file"
+                  ref={fileInputRef}
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
                   required
                   className="mt-1"
